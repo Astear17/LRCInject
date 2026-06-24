@@ -511,6 +511,68 @@
     if (indicator.parentNode) indicator.parentNode.removeChild(indicator);
   }
 
+  function getOrCreatePrerollIndicator() {
+    var el = document.getElementById("lrcinject-preroll");
+    if (el) return el;
+    el = document.createElement("div");
+    el.id = "lrcinject-preroll";
+    el.className = "lrcinject-preroll-indicator";
+    el.setAttribute("aria-hidden", "true");
+    el.innerHTML = "<span></span><span></span><span></span>";
+    return el;
+  }
+
+  function showPrerollIndicator() {
+    var linesContainer = document.getElementById("lrcinject-lines");
+    if (!linesContainer) return;
+    var indicator = getOrCreatePrerollIndicator();
+    if (!indicator.parentNode) {
+      linesContainer.insertBefore(indicator, linesContainer.firstChild);
+    }
+    indicator.classList.add("is-visible");
+  }
+
+  function hidePrerollIndicator() {
+    var indicator = document.getElementById("lrcinject-preroll");
+    if (!indicator) return;
+    indicator.classList.remove("is-visible");
+    if (indicator.parentNode) indicator.parentNode.removeChild(indicator);
+  }
+
+  function setPrerollClasses(enable) {
+    var lineEls = document.querySelectorAll("#lrcinject-overlay .lrcinject-line");
+    var binding = overlayState.binding;
+    var parsedLines = binding ? (binding.parsedLines || binding.lines || []) : [];
+
+    if (!enable) {
+      for (var i = 0; i < lineEls.length; i++) {
+        lineEls[i].classList.remove("is-preroll-upcoming", "is-preroll-first", "is-preroll-second");
+      }
+      return;
+    }
+
+    var firstTimedIndex = -1;
+    for (var j = 0; j < parsedLines.length; j++) {
+      if (Number.isFinite(Number(parsedLines[j].start))) {
+        firstTimedIndex = j;
+        break;
+      }
+    }
+
+    for (var k = 0; k < lineEls.length; k++) {
+      var idx = Number(lineEls[k].getAttribute("data-index"));
+      lineEls[k].classList.remove("is-preroll-first", "is-preroll-second", "is-preroll-upcoming");
+
+      if (firstTimedIndex >= 0 && idx === firstTimedIndex) {
+        lineEls[k].classList.add("is-preroll-first");
+      } else if (firstTimedIndex >= 0 && idx === firstTimedIndex + 1) {
+        lineEls[k].classList.add("is-preroll-second");
+      } else if (firstTimedIndex >= 0 && idx > firstTimedIndex + 1) {
+        lineEls[k].classList.add("is-preroll-upcoming");
+      }
+    }
+  }
+
   function scrollToWaitingStart() {
     var linesContainer = document.getElementById("lrcinject-lines");
     if (!linesContainer) return;
@@ -672,11 +734,11 @@
       el.classList.toggle("is-completed", isCompleted);
       el.classList.remove("is-near", "is-far");
 
-      if (isUpcoming) {
-        var distance = idx - activeIndex;
-        if (distance === 1 || distance === -1) {
+      if (isUpcoming || isCompleted) {
+        var distance = Math.abs(idx - activeIndex);
+        if (distance === 1) {
           el.classList.add("is-near");
-        } else if (distance > 1) {
+        } else if (distance >= 2) {
           el.classList.add("is-far");
         }
       }
@@ -907,22 +969,28 @@
 
       if (playbackState === "before-start") {
         hideWaitingIndicator();
+        showPrerollIndicator();
+        setPrerollClasses(true);
         if (overlayState.activeIndex !== -1) {
           overlayState.activeIndex = -1;
-        updateActiveClasses(-1, currentAudio.currentTime, offset);
-        updateHighlightSweep(-1, currentAudio.currentTime, offset);
-        scrollToWaitingStart();
-      }
-    } else if (playbackState === "after-end") {
-      hideWaitingIndicator();
-      if (overlayState.activeIndex !== -2) {
-        overlayState.activeIndex = -2;
-        updateActiveClasses(-1, currentAudio.currentTime, offset);
-        updateHighlightSweep(-1, currentAudio.currentTime, offset);
-        scrollToWaitingEnd();
-      }
-    } else {
-      var index = getActiveLineIndex(lines, currentAudio.currentTime, offset);
+          updateActiveClasses(-1, currentAudio.currentTime, offset);
+          updateHighlightSweep(-1, currentAudio.currentTime, offset);
+          scrollToWaitingStart();
+        }
+      } else if (playbackState === "after-end") {
+        hideWaitingIndicator();
+        hidePrerollIndicator();
+        setPrerollClasses(false);
+        if (overlayState.activeIndex !== -2) {
+          overlayState.activeIndex = -2;
+          updateActiveClasses(-1, currentAudio.currentTime, offset);
+          updateHighlightSweep(-1, currentAudio.currentTime, offset);
+          scrollToWaitingEnd();
+        }
+      } else {
+        hidePrerollIndicator();
+        setPrerollClasses(false);
+        var index = getActiveLineIndex(lines, currentAudio.currentTime, offset);
 
       if (index !== overlayState.activeIndex) {
         overlayState.activeIndex = index;
@@ -966,6 +1034,8 @@
     } else {
       overlay.classList.remove("is-visible");
       hideWaitingIndicator();
+      hidePrerollIndicator();
+      setPrerollClasses(false);
       _lastTimelineState = null;
       removeLayoutMode();
     }
@@ -1031,15 +1101,21 @@
         updateActiveClasses(-1, playerState.currentTime, binding.userOffset || 0);
         updateHighlightSweep(-1, playerState.currentTime, binding.userOffset || 0);
         hideWaitingIndicator();
+        showPrerollIndicator();
+        setPrerollClasses(true);
         scrollToWaitingStart();
       } else if (playbackState === "after-end") {
         overlayState.activeIndex = -2;
         updateActiveClasses(-1, playerState.currentTime, binding.userOffset || 0);
         updateHighlightSweep(-1, playerState.currentTime, binding.userOffset || 0);
         hideWaitingIndicator();
+        hidePrerollIndicator();
+        setPrerollClasses(false);
         scrollToWaitingEnd();
       } else {
         hideWaitingIndicator();
+        hidePrerollIndicator();
+        setPrerollClasses(false);
         var initialIndex = getActiveLineIndex(parsedLines, playerState.currentTime, binding.userOffset || 0);
         overlayState.activeIndex = initialIndex;
         updateActiveClasses(initialIndex, playerState.currentTime, binding.userOffset || 0);

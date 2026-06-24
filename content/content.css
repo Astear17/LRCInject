@@ -72,19 +72,19 @@ html.lrcinject-layout-active [data-lrcinject-player-root="true"] [data-lrcinject
 #lrcinject-overlay .lrcinject-lines {
   transition: transform 480ms cubic-bezier(0.2, 0, 0, 1);
   will-change: transform;
-  padding: 36vh 0;
+  padding: 42vh 0;
   mask-image: linear-gradient(
     to bottom,
     transparent 0%,
-    black 14%,
-    black 82%,
+    black 24%,
+    black 70%,
     transparent 100%
   );
   -webkit-mask-image: linear-gradient(
     to bottom,
     transparent 0%,
-    black 14%,
-    black 82%,
+    black 24%,
+    black 70%,
     transparent 100%
   );
 }
@@ -94,11 +94,11 @@ html.lrcinject-layout-active [data-lrcinject-player-root="true"] [data-lrcinject
   display: block;
   position: relative;
   font-family: var(--lrcinject-font-family, inherit);
-  font-size: clamp(24px, 2.7vw, 46px);
-  line-height: 1.18;
+  font-size: clamp(26px, 2.9vw, 50px);
+  line-height: 1.16;
   font-weight: 700;
   letter-spacing: var(--lrcinject-letter-spacing, -0.02em);
-  margin: 0 0 0.60em;
+  margin: 0 0 0.55em;
   max-width: 16ch;
   cursor: pointer;
   user-select: none;
@@ -150,25 +150,48 @@ html.lrcinject-layout-active [data-lrcinject-player-root="true"] [data-lrcinject
 
 /* ── Completed line ── */
 #lrcinject-overlay .lrcinject-line.is-completed .lrcinject-line-base {
-  color: rgba(255, 255, 255, 0.88);
-  opacity: 0.90;
+  color: rgba(255, 255, 255, 0.94);
+  opacity: 1;
   filter: blur(0);
   transform: scale(0.995);
   text-shadow: 0 0 8px rgba(255, 255, 255, 0.04);
 }
 
+#lrcinject-overlay .lrcinject-line.is-completed .lrcinject-line-highlight {
+  display: none;
+}
+
+#lrcinject-overlay .lrcinject-line.is-completed .lrcinject-word {
+  opacity: 1;
+  color: rgba(255, 255, 255, 0.94);
+  background: none;
+  -webkit-text-fill-color: currentColor;
+  filter: none;
+}
+
 /* ── Near-upcoming ── */
 #lrcinject-overlay .lrcinject-line.is-near .lrcinject-line-base {
-  opacity: 0.48;
-  filter: blur(0.6px);
+  opacity: 0.44;
+  filter: blur(0.5px);
   transform: scale(0.99);
 }
 
-/* ── Far-upcoming ── */
+/* ── Far-upcoming: nearly invisible ── */
 #lrcinject-overlay .lrcinject-line.is-far .lrcinject-line-base {
-  opacity: 0.22;
-  filter: blur(1.4px);
+  opacity: 0.08;
+  filter: blur(2px);
   transform: scale(0.97);
+}
+
+/* ── Far completed: also nearly invisible ── */
+#lrcinject-overlay .lrcinject-line.is-completed.is-far .lrcinject-line-base {
+  opacity: 0.08;
+  filter: blur(2px);
+  transform: scale(0.97);
+}
+
+#lrcinject-overlay .lrcinject-line.is-completed.is-far .lrcinject-word {
+  opacity: 0.08;
 }
 
 /* ── Highlight row: each visual row of the active line ── */
@@ -213,6 +236,84 @@ html.lrcinject-layout-active [data-lrcinject-player-root="true"] [data-lrcinject
 #lrcinject-overlay .lrcinject-line .lrcinject-line-base .lrcinject-word {
   display: inline;
   position: relative;
+}
+
+/* ── Preroll state: dimmer lines before first lyric starts ── */
+#lrcinject-overlay .lrcinject-line.is-preroll-upcoming .lrcinject-line-base {
+  opacity: 0.28;
+  color: rgba(255, 255, 255, 0.28);
+  filter: blur(0.8px);
+  text-shadow: none;
+}
+
+#lrcinject-overlay .lrcinject-line.is-preroll-upcoming .lrcinject-line-highlight {
+  display: none;
+}
+
+#lrcinject-overlay .lrcinject-line.is-preroll-upcoming .lrcinject-word {
+  opacity: 0.28;
+  color: rgba(255, 255, 255, 0.28);
+}
+
+/* First visible preroll line: brighter, readable */
+#lrcinject-overlay .lrcinject-line.is-preroll-first .lrcinject-line-base {
+  opacity: 0.72;
+  color: rgba(255, 255, 255, 0.72);
+  filter: blur(0);
+  text-shadow: none;
+}
+
+#lrcinject-overlay .lrcinject-line.is-preroll-first .lrcinject-line-highlight {
+  display: none;
+}
+
+#lrcinject-overlay .lrcinject-line.is-preroll-first .lrcinject-word {
+  opacity: 0.72;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+/* Second visible preroll line: medium */
+#lrcinject-overlay .lrcinject-line.is-preroll-second .lrcinject-line-base {
+  opacity: 0.42;
+  color: rgba(255, 255, 255, 0.42);
+  filter: blur(0.4px);
+  text-shadow: none;
+}
+
+#lrcinject-overlay .lrcinject-line.is-preroll-second .lrcinject-line-highlight {
+  display: none;
+}
+
+#lrcinject-overlay .lrcinject-line.is-preroll-second .lrcinject-word {
+  opacity: 0.42;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+/* ── Static preroll dot indicator ── */
+#lrcinject-overlay .lrcinject-preroll-indicator {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: clamp(18px, 1.6vw, 30px);
+  padding-left: 0.04em;
+  opacity: 0.9;
+  color: rgba(255, 255, 255, 0.88);
+  pointer-events: none;
+}
+
+#lrcinject-overlay .lrcinject-preroll-indicator.is-visible {
+  display: flex;
+}
+
+#lrcinject-overlay .lrcinject-preroll-indicator span {
+  display: block;
+  width: clamp(7px, 0.5vw, 10px);
+  height: clamp(7px, 0.5vw, 10px);
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 1;
+  transform: none;
+  animation: none;
 }
 
 /* ── Waiting indicator ── */
@@ -331,7 +432,7 @@ html.lrcinject-layout-active [data-lrcinject-player-root="true"] [data-lrcinject
   }
 
   #lrcinject-overlay .lrcinject-line {
-    font-size: clamp(20px, 5vw, 36px);
+    font-size: clamp(22px, 5.2vw, 40px);
     max-width: none;
   }
 
