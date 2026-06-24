@@ -1,0 +1,50 @@
+{
+  "manifest_version": 3,
+  "name": "LRCInject",
+  "version": "1.0.0",
+  "description": "Import and display time-synced LRC/SRT lyrics on Apple Music Web.",
+  "permissions": ["storage", "tabs", "activeTab", "scripting"],
+  "host_permissions": ["https://music.apple.com/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://music.apple.com/*"],
+      "js": [
+        "lib/runtime.js",
+        "lib/utils.js",
+        "lib/lrc-parser.js",
+        "lib/srt-parser.js",
+        "lib/json-parser.js",
+        "lib/storage.js",
+        "lib/media-bridge.js",
+        "lib/track-detector.js",
+        "lib/sync-engine.js",
+        "lib/renderer.js",
+        "content/content.js"
+      ],
+      "css": ["content/content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["content/inject.js"],
+      "matches": ["https://music.apple.com/*"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

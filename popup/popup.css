@@ -1,0 +1,275 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  width: 360px;
+  min-height: 180px;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  background: #1c1c1e;
+  color: #f5f5f7;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.popup {
+  padding: 16px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logo h1 {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.status {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  white-space: nowrap;
+}
+
+.status.connected {
+  color: #30d158;
+  background: rgba(48, 209, 88, 0.1);
+}
+
+.status.connecting {
+  color: #ffd60a;
+  background: rgba(255, 214, 10, 0.1);
+}
+
+.status.playing {
+  color: #30d158;
+  background: rgba(48, 209, 88, 0.1);
+}
+
+.status.error {
+  color: #ff375f;
+  background: rgba(255, 55, 95, 0.1);
+}
+
+.track-info {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.track-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.track-artist {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.playback-state {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.3);
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.no-track {
+  text-align: center;
+  padding: 16px 10px;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.5;
+  font-size: 12px;
+}
+
+.no-track strong {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.import-area {
+  display: flex;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 150ms ease;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: #ff2d55;
+  color: #fff;
+  flex: 1;
+}
+
+.btn-primary:hover {
+  background: #ff375f;
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f5f5f7;
+  flex: 1;
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.btn-danger {
+  background: rgba(255, 55, 95, 0.15);
+  color: #ff375f;
+}
+
+.btn-danger:hover {
+  background: rgba(255, 55, 95, 0.25);
+}
+
+.btn-sm {
+  padding: 4px 8px;
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.btn-sm:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.btn-xs {
+  padding: 3px 8px;
+  font-size: 10px;
+  border-radius: 6px;
+}
+
+.controls {
+  display: flex;
+  gap: 8px;
+}
+
+.lyrics-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lyrics-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #ff2d55;
+  background: rgba(255, 45, 85, 0.1);
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.offset-control {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.offset-control label {
+  display: block;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.35);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.offset-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.offset-value {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-width: 52px;
+  text-align: center;
+  color: #fff;
+}
+
+.option-row {
+  display: flex;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+}
+
+.toggle-label input[type="checkbox"] {
+  accent-color: #ff2d55;
+}
+
+.retry-area {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.retry-area .btn {
+  flex: 0;
+  padding: 8px 20px;
+}
+
+.footer {
+  margin-top: 14px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  text-align: center;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.2);
+}
