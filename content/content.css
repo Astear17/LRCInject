@@ -65,6 +65,7 @@ html.lrcinject-layout-active [data-lrcinject-player-root="true"] [data-lrcinject
   pointer-events: auto;
   z-index: 3;
   background: transparent !important;
+  box-shadow: none !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
@@ -73,18 +74,19 @@ html.lrcinject-layout-active [data-lrcinject-player-root="true"] [data-lrcinject
   transition: transform 480ms cubic-bezier(0.2, 0, 0, 1);
   will-change: transform;
   padding: 42vh 0;
+  background: transparent !important;
   mask-image: linear-gradient(
     to bottom,
     transparent 0%,
-    black 24%,
-    black 70%,
+    black 16%,
+    black 84%,
     transparent 100%
   );
   -webkit-mask-image: linear-gradient(
     to bottom,
     transparent 0%,
-    black 24%,
-    black 70%,
+    black 16%,
+    black 84%,
     transparent 100%
   );
 }
@@ -148,6 +150,17 @@ html.lrcinject-layout-active [data-lrcinject-player-root="true"] [data-lrcinject
   opacity: 1;
 }
 
+/* ── Upcoming line ── */
+#lrcinject-overlay .lrcinject-line.is-upcoming .lrcinject-line-base {
+  opacity: 0.38;
+  filter: blur(1.2px);
+  transform: scale(0.99);
+}
+
+#lrcinject-overlay .lrcinject-line.is-upcoming .lrcinject-line-highlight {
+  display: none;
+}
+
 /* ── Completed line ── */
 #lrcinject-overlay .lrcinject-line.is-completed .lrcinject-line-base {
   color: rgba(255, 255, 255, 0.94);
@@ -167,6 +180,21 @@ html.lrcinject-layout-active [data-lrcinject-player-root="true"] [data-lrcinject
   background: none;
   -webkit-text-fill-color: currentColor;
   filter: none;
+}
+
+/* ── Active overrides completed/upcoming ── */
+#lrcinject-overlay .lrcinject-line.is-active.is-completed .lrcinject-line-base,
+#lrcinject-overlay .lrcinject-line.is-active.is-upcoming .lrcinject-line-base {
+  color: rgba(255, 255, 255, 0.34);
+  opacity: 1;
+  filter: blur(0);
+  transform: scale(1);
+}
+
+#lrcinject-overlay .lrcinject-line.is-active.is-completed .lrcinject-line-highlight,
+#lrcinject-overlay .lrcinject-line.is-active.is-upcoming .lrcinject-line-highlight {
+  display: block;
+  opacity: 1;
 }
 
 /* ── Near-upcoming ── */
@@ -232,6 +260,21 @@ html.lrcinject-layout-active [data-lrcinject-player-root="true"] [data-lrcinject
   mask-repeat: no-repeat;
 }
 
+/* ── Highlight row states: pending rows must be fully hidden ── */
+#lrcinject-overlay .lrcinject-highlight-row.is-row-pending {
+  opacity: 0 !important;
+  visibility: hidden;
+  text-shadow: none !important;
+}
+
+#lrcinject-overlay .lrcinject-highlight-row.is-row-active {
+  visibility: visible;
+}
+
+#lrcinject-overlay .lrcinject-highlight-row.is-row-completed {
+  visibility: visible;
+}
+
 /* Word spans inside base: inherit, no special styling */
 #lrcinject-overlay .lrcinject-line .lrcinject-line-base .lrcinject-word {
   display: inline;
@@ -240,53 +283,62 @@ html.lrcinject-layout-active [data-lrcinject-player-root="true"] [data-lrcinject
 
 /* ── Preroll state: dimmer lines before first lyric starts ── */
 #lrcinject-overlay .lrcinject-line.is-preroll-upcoming .lrcinject-line-base {
-  opacity: 0.28;
-  color: rgba(255, 255, 255, 0.28);
-  filter: blur(0.8px);
-  text-shadow: none;
+  opacity: 1 !important;
+  color: rgba(255, 255, 255, 0.28) !important;
+  filter: blur(0.8px) !important;
+  text-shadow: none !important;
+  transform: none !important;
 }
 
 #lrcinject-overlay .lrcinject-line.is-preroll-upcoming .lrcinject-line-highlight {
-  display: none;
+  display: none !important;
 }
 
 #lrcinject-overlay .lrcinject-line.is-preroll-upcoming .lrcinject-word {
-  opacity: 0.28;
-  color: rgba(255, 255, 255, 0.28);
+  opacity: 1 !important;
+  color: rgba(255, 255, 255, 0.28) !important;
 }
 
 /* First visible preroll line: brighter, readable */
+#lrcinject-overlay .lrcinject-line.is-preroll-first {
+  opacity: 1 !important;
+}
+
 #lrcinject-overlay .lrcinject-line.is-preroll-first .lrcinject-line-base {
-  opacity: 0.72;
-  color: rgba(255, 255, 255, 0.72);
-  filter: blur(0);
-  text-shadow: none;
+  opacity: 1 !important;
+  color: rgba(255, 255, 255, 0.78) !important;
+  filter: none !important;
+  text-shadow: none !important;
+  transform: none !important;
 }
 
 #lrcinject-overlay .lrcinject-line.is-preroll-first .lrcinject-line-highlight {
-  display: none;
+  display: none !important;
 }
 
 #lrcinject-overlay .lrcinject-line.is-preroll-first .lrcinject-word {
-  opacity: 0.72;
-  color: rgba(255, 255, 255, 0.72);
+  opacity: 1 !important;
+  color: rgba(255, 255, 255, 0.78) !important;
+  filter: none !important;
+  text-shadow: none !important;
 }
 
 /* Second visible preroll line: medium */
 #lrcinject-overlay .lrcinject-line.is-preroll-second .lrcinject-line-base {
-  opacity: 0.42;
-  color: rgba(255, 255, 255, 0.42);
-  filter: blur(0.4px);
-  text-shadow: none;
+  opacity: 1 !important;
+  color: rgba(255, 255, 255, 0.42) !important;
+  filter: blur(0.4px) !important;
+  text-shadow: none !important;
+  transform: none !important;
 }
 
 #lrcinject-overlay .lrcinject-line.is-preroll-second .lrcinject-line-highlight {
-  display: none;
+  display: none !important;
 }
 
 #lrcinject-overlay .lrcinject-line.is-preroll-second .lrcinject-word {
-  opacity: 0.42;
-  color: rgba(255, 255, 255, 0.42);
+  opacity: 1 !important;
+  color: rgba(255, 255, 255, 0.42) !important;
 }
 
 /* ── Static preroll dot indicator ── */
@@ -314,58 +366,6 @@ html.lrcinject-layout-active [data-lrcinject-player-root="true"] [data-lrcinject
   opacity: 1;
   transform: none;
   animation: none;
-}
-
-/* ── Waiting indicator ── */
-#lrcinject-overlay .lrcinject-waiting {
-  display: none;
-  align-items: center;
-  gap: 0.34em;
-  color: rgba(255, 255, 255, 0.72);
-  font-family: var(--lrcinject-font-family, inherit);
-  font-size: clamp(26px, 2.8vw, 48px);
-  line-height: 1;
-  font-weight: 700;
-  pointer-events: none;
-  margin-top: clamp(18px, 1.5vw, 30px);
-  margin-left: 0.04em;
-}
-
-#lrcinject-overlay .lrcinject-waiting.is-visible {
-  display: flex;
-}
-
-#lrcinject-overlay .lrcinject-waiting span {
-  display: inline-block;
-  width: 0.22em;
-  height: 0.22em;
-  border-radius: 999px;
-  background: currentColor;
-  opacity: 0.24;
-  transform: none;
-  animation: lrcinject-dot-1 1.35s steps(1, end) infinite;
-}
-
-#lrcinject-overlay .lrcinject-waiting span:nth-child(2) {
-  animation-name: lrcinject-dot-2;
-}
-
-#lrcinject-overlay .lrcinject-waiting span:nth-child(3) {
-  animation-name: lrcinject-dot-3;
-}
-
-@keyframes lrcinject-dot-1 {
-  0%, 100% { opacity: 0.95; filter: brightness(1.2); }
-}
-
-@keyframes lrcinject-dot-2 {
-  0%, 32% { opacity: 0.24; filter: brightness(0.8); }
-  33%, 100% { opacity: 0.95; filter: brightness(1.2); }
-}
-
-@keyframes lrcinject-dot-3 {
-  0%, 65% { opacity: 0.24; filter: brightness(0.8); }
-  66%, 100% { opacity: 0.95; filter: brightness(1.2); }
 }
 
 /* ── Toggle button ── */

@@ -423,92 +423,21 @@
     }
   }
 
-  function getLyricsPlaybackState(lines, currentTime, offset) {
+  function getLyricsPlaybackState(lines, currentTime, offset, trackDuration) {
     if (!Array.isArray(lines) || lines.length === 0) return "empty";
 
     var t = currentTime + (offset || 0);
     var first = lines[0];
     var last = lines[lines.length - 1];
-    var lastEnd = Number.isFinite(last.end) ? last.end : (last.start + 2.5);
+    var lastEnd = Number.isFinite(last.end)
+      ? last.end
+      : (Number.isFinite(trackDuration) && trackDuration > 0
+        ? trackDuration
+        : last.start + 15);
 
     if (t < first.start) return "before-start";
     if (t > lastEnd) return "after-end";
     return "active";
-  }
-
-  function shouldShowWaitingIndicator(currentLine, nextLine, currentTime) {
-    if (!currentLine || !nextLine) return false;
-
-    var currentStart = Number(currentLine.start);
-    var nextStart = Number(nextLine.start);
-
-    if (!Number.isFinite(currentStart) || !Number.isFinite(nextStart)) return false;
-
-    var gap = nextStart - currentStart;
-
-    // Only show dots for actual long pauses, not normal line transitions
-    if (gap < 3.0) return false;
-
-    // Estimate when the current lyric line should be considered finished
-    var currentEnd = currentStart + Math.min(2.2, gap * 0.65);
-
-    var words = Array.isArray(currentLine.words)
-      ? currentLine.words.filter(function (w) { return Number.isFinite(w.start); })
-      : [];
-
-    if (words.length > 0) {
-      var lastWordStart = words[words.length - 1].start;
-      currentEnd = Math.min(nextStart - 0.4, lastWordStart + 0.75);
-    }
-
-    return currentTime >= currentEnd && currentTime < nextStart - 0.25;
-  }
-
-  function getOrCreateWaitingIndicator() {
-    var el = document.getElementById("lrcinject-waiting");
-    if (el) return el;
-
-    el = document.createElement("div");
-    el.id = "lrcinject-waiting";
-    el.className = "lrcinject-waiting";
-    el.setAttribute("aria-hidden", "true");
-    el.innerHTML = "<span></span><span></span><span></span>";
-    return el;
-  }
-
-  function positionWaitingIndicator(activeIndex) {
-    var linesContainer = document.getElementById("lrcinject-lines");
-    if (!linesContainer) return;
-
-    var indicator = getOrCreateWaitingIndicator();
-    var activeLineEl = linesContainer.querySelector(
-      '.lrcinject-line[data-index="' + activeIndex + '"]'
-    );
-
-    if (!activeLineEl) {
-      // No active line element found — hide indicator
-      if (indicator.parentNode) indicator.parentNode.removeChild(indicator);
-      indicator.classList.remove("is-visible");
-      return;
-    }
-
-    // Insert indicator right after the active line element if not already there
-    if (indicator.previousSibling !== activeLineEl) {
-      if (indicator.parentNode) indicator.parentNode.removeChild(indicator);
-      activeLineEl.insertAdjacentElement("afterend", indicator);
-    }
-
-    indicator.classList.add("is-visible");
-    indicator.removeAttribute("aria-hidden");
-  }
-
-  function hideWaitingIndicator() {
-    var indicator = document.getElementById("lrcinject-waiting");
-    if (!indicator) return;
-    indicator.classList.remove("is-visible");
-    indicator.setAttribute("aria-hidden", "true");
-    // Remove from DOM to avoid layout interference
-    if (indicator.parentNode) indicator.parentNode.removeChild(indicator);
   }
 
   function getOrCreatePrerollIndicator() {
@@ -705,9 +634,20 @@
 
     if (!panel || !linesContainer || !activeLine) return;
 
-    var panelTarget = panel.clientHeight * 0.40;
+    var panelH = panel.clientHeight;
+    var panelTarget = panelH * 0.40;
     var lineTop = activeLine.offsetTop;
     var translateY = Math.round(panelTarget - lineTop);
+
+    var allLines = linesContainer.querySelectorAll(".lrcinject-line");
+    var totalLines = allLines.length;
+    if (totalLines > 0) {
+      var lastLineEl = allLines[totalLines - 1];
+      var containerH = linesContainer.scrollHeight;
+      var minTranslate = Math.round(panelH - containerH + panelH * 0.12);
+      var maxTranslate = Math.round(panelH * 0.88);
+      translateY = Math.max(minTranslate, Math.min(maxTranslate, translateY));
+    }
 
     linesContainer.style.transform = "translate3d(0, " + translateY + "px, 0)";
   }
@@ -722,9 +662,10 @@
       var el = lineEls[i];
       var idx = Number(el.getAttribute("data-index"));
       var lineData = parsedLines[idx];
-      var lineStart = lineData ? lineData.start : -Infinity;
       var nextLine = parsedLines[idx + 1];
-      var nextStart = nextLine ? nextLine.start : (lineData ? (Number.isFinite(lineData.end) ? lineData.end : lineData.start + 2.5) : Infinity);
+      var nextStart = nextLine
+        ? nextLine.start
+        : (lineData && Number.isFinite(lineData.end) ? lineData.end : Infinity);
 
       var isActive = idx === activeIndex;
       var isCompleted = !isActive && t >= nextStart;
@@ -732,9 +673,10 @@
 
       el.classList.toggle("is-active", isActive);
       el.classList.toggle("is-completed", isCompleted);
+      el.classList.toggle("is-upcoming", isUpcoming);
       el.classList.remove("is-near", "is-far");
 
-      if (isUpcoming || isCompleted) {
+      if ((isUpcoming || isCompleted) && activeIndex >= 0) {
         var distance = Math.abs(idx - activeIndex);
         if (distance === 1) {
           el.classList.add("is-near");
@@ -750,6 +692,8 @@
     return x * x * (3 - 2 * x);
   }
 
+  var WORD_END_GAP = 0.12;
+
   function getWordTimings(line, wordEls, lineEnd) {
     var words = line.words;
     var hasTimings = Array.isArray(words) && words.length >= 2 &&
@@ -759,7 +703,12 @@
     if (hasTimings) {
       for (var i = 0; i < words.length; i++) {
         var ws = Number(words[i].start);
-        var we = (i + 1 < words.length) ? Number(words[i + 1].start) : lineEnd;
+        var we;
+        if (i + 1 < words.length) {
+          we = Number(words[i + 1].start);
+        } else {
+          we = Math.max(ws + 0.08, lineEnd - WORD_END_GAP);
+        }
         timings.push({ start: ws, end: we });
       }
     } else {
@@ -767,10 +716,14 @@
       if (count > 0) {
         var span = (lineEnd - line.start) / count;
         for (var j = 0; j < count; j++) {
-          timings.push({
-            start: line.start + j * span,
-            end: line.start + (j + 1) * span
-          });
+          var s = line.start + j * span;
+          var e;
+          if (j + 1 < count) {
+            e = line.start + (j + 1) * span;
+          } else {
+            e = Math.max(s + 0.08, lineEnd - WORD_END_GAP);
+          }
+          timings.push({ start: s, end: e });
         }
       }
     }
@@ -928,13 +881,13 @@
         }
       }
 
-      // Set row progress
+      // Set row progress and state classes
       for (var rp = 0; rp < rows.length; rp++) {
+        var rowEl = existingRows[rp];
         var rowProgress;
         if (rp < activeRowIdx) {
           rowProgress = 100;
         } else if (rp === activeRowIdx) {
-          // Compute sweep X based on active word position + local progress
           var wordStartX = activeWordRect.left - lineRect.left - rows[rp].left;
           var wordWidth = activeWordRect.width;
           var sweepX = wordStartX + wordWidth * activeInfo.progress;
@@ -942,7 +895,16 @@
         } else {
           rowProgress = 0;
         }
-        existingRows[rp].style.setProperty("--row-progress", rowProgress.toFixed(2) + "%");
+
+        var safeProgress = clamp01(rowProgress / 100);
+        var isPending = rp > activeRowIdx || (rp === activeRowIdx && safeProgress <= 0.005);
+        var isRowActive = rp === activeRowIdx && !isPending;
+        var isRowCompleted = rp < activeRowIdx || safeProgress >= 0.995;
+
+        rowEl.classList.toggle("is-row-pending", isPending);
+        rowEl.classList.toggle("is-row-active", isRowActive);
+        rowEl.classList.toggle("is-row-completed", isRowCompleted);
+        rowEl.style.setProperty("--row-progress", (safeProgress * 100).toFixed(2) + "%");
       }
     }
   }
@@ -963,22 +925,19 @@
 
       var lines = overlayState.binding.parsedLines || overlayState.binding.lines || [];
       var offset = overlayState.binding.userOffset || 0;
-      var t = currentAudio.currentTime + offset;
-      var playbackState = getLyricsPlaybackState(lines, currentAudio.currentTime, offset);
+      var playbackState = getLyricsPlaybackState(lines, currentAudio.currentTime, offset, currentAudio.duration);
       setTimelineStateDebug(playbackState, currentAudio.currentTime);
 
       if (playbackState === "before-start") {
-        hideWaitingIndicator();
         showPrerollIndicator();
-        setPrerollClasses(true);
         if (overlayState.activeIndex !== -1) {
           overlayState.activeIndex = -1;
-          updateActiveClasses(-1, currentAudio.currentTime, offset);
-          updateHighlightSweep(-1, currentAudio.currentTime, offset);
           scrollToWaitingStart();
         }
+        updateActiveClasses(-1, currentAudio.currentTime, offset);
+        updateHighlightSweep(-1, currentAudio.currentTime, offset);
+        setPrerollClasses(true);
       } else if (playbackState === "after-end") {
-        hideWaitingIndicator();
         hidePrerollIndicator();
         setPrerollClasses(false);
         if (overlayState.activeIndex !== -2) {
@@ -999,15 +958,6 @@
 
       updateActiveClasses(index, currentAudio.currentTime, offset);
       updateHighlightSweep(index, currentAudio.currentTime, offset);
-
-        // Only show waiting indicator during genuine instrumental gaps
-        var currentLine = lines[index];
-        var nextLine = lines[index + 1];
-        if (shouldShowWaitingIndicator(currentLine, nextLine, t)) {
-          positionWaitingIndicator(index);
-        } else {
-          hideWaitingIndicator();
-        }
       }
 
       overlayState.raf = requestAnimationFrame(tick);
@@ -1033,7 +983,6 @@
       applyLayoutMode();
     } else {
       overlay.classList.remove("is-visible");
-      hideWaitingIndicator();
       hidePrerollIndicator();
       setPrerollClasses(false);
       _lastTimelineState = null;
@@ -1093,14 +1042,13 @@
       overlayState.binding = binding;
       overlayState.activeIndex = -1;
 
-      var playbackState = getLyricsPlaybackState(parsedLines, playerState.currentTime, binding.userOffset || 0);
+      var playbackState = getLyricsPlaybackState(parsedLines, playerState.currentTime, binding.userOffset || 0, playerState.duration);
       setTimelineStateDebug(playbackState, playerState.currentTime);
 
       if (playbackState === "before-start") {
         overlayState.activeIndex = -1;
         updateActiveClasses(-1, playerState.currentTime, binding.userOffset || 0);
         updateHighlightSweep(-1, playerState.currentTime, binding.userOffset || 0);
-        hideWaitingIndicator();
         showPrerollIndicator();
         setPrerollClasses(true);
         scrollToWaitingStart();
@@ -1108,12 +1056,10 @@
         overlayState.activeIndex = -2;
         updateActiveClasses(-1, playerState.currentTime, binding.userOffset || 0);
         updateHighlightSweep(-1, playerState.currentTime, binding.userOffset || 0);
-        hideWaitingIndicator();
         hidePrerollIndicator();
         setPrerollClasses(false);
         scrollToWaitingEnd();
       } else {
-        hideWaitingIndicator();
         hidePrerollIndicator();
         setPrerollClasses(false);
         var initialIndex = getActiveLineIndex(parsedLines, playerState.currentTime, binding.userOffset || 0);
