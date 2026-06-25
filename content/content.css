@@ -197,6 +197,22 @@ html.lrcinject-layout-active [data-lrcinject-player-root="true"] [data-lrcinject
   opacity: 1;
 }
 
+/* ── Visual-complete: active line fully revealed before next lyric ── */
+#lrcinject-overlay .lrcinject-line.is-active.is-visual-complete .lrcinject-line-base,
+#lrcinject-overlay .lrcinject-line.is-active.is-visual-complete .lrcinject-word {
+  opacity: 1;
+  color: rgba(255, 255, 255, 0.96);
+  filter: none;
+  transform: none;
+  text-shadow:
+    0 0 1px rgba(255, 255, 255, 0.35),
+    0 0 8px rgba(255, 255, 255, 0.06);
+}
+
+#lrcinject-overlay .lrcinject-line.is-active.is-visual-complete .lrcinject-line-highlight {
+  display: none;
+}
+
 /* ── Near-upcoming ── */
 #lrcinject-overlay .lrcinject-line.is-near .lrcinject-line-base {
   opacity: 0.44;
@@ -260,7 +276,7 @@ html.lrcinject-layout-active [data-lrcinject-player-root="true"] [data-lrcinject
   mask-repeat: no-repeat;
 }
 
-/* ── Highlight row states: pending rows must be fully hidden ── */
+/* ── Highlight row states ── */
 #lrcinject-overlay .lrcinject-highlight-row.is-row-pending {
   opacity: 0 !important;
   visibility: hidden;
@@ -273,6 +289,12 @@ html.lrcinject-layout-active [data-lrcinject-player-root="true"] [data-lrcinject
 
 #lrcinject-overlay .lrcinject-highlight-row.is-row-completed {
   visibility: visible;
+  opacity: 1;
+  -webkit-mask-image: none;
+  mask-image: none;
+  text-shadow:
+    0 0 1px rgba(255, 255, 255, 0.35),
+    0 0 8px rgba(255, 255, 255, 0.05);
 }
 
 /* Word spans inside base: inherit, no special styling */

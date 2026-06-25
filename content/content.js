@@ -861,6 +861,8 @@
     return parts.join("");
   }
 
+  var REVEAL_FINISH_LEAD = 0.42;
+
   function updateHighlightSweep(activeRenderIdx, currentTime, offset) {
     var renderItems = overlayState.renderItems || [];
     var activeItem = renderItems[activeRenderIdx];
@@ -879,50 +881,68 @@
 
       if (idx !== activeLineIdx || !parsedLines[idx]) {
         highlightEl.textContent = "";
+        el.classList.remove("is-visual-complete");
         continue;
       }
 
       var line = parsedLines[idx];
       var nextLine = parsedLines[idx + 1];
-      var lineEnd = Number.isFinite(line.end)
+      var rawLineEnd = Number.isFinite(line.end)
         ? line.end
         : (Number.isFinite(nextLine && nextLine.start) ? nextLine.start : line.start + 3);
+
+      var nextLineStart = Number.isFinite(nextLine && nextLine.start) ? nextLine.start : null;
+      var visualLineEnd = Number.isFinite(nextLineStart)
+        ? Math.max(line.start, nextLineStart - REVEAL_FINISH_LEAD)
+        : rawLineEnd;
+
+      var forceComplete = Number.isFinite(visualLineEnd) && t >= visualLineEnd;
 
       var wordEls = el.querySelectorAll(".lrcinject-line-base .lrcinject-word");
       if (wordEls.length === 0) {
         highlightEl.textContent = "";
+        el.classList.remove("is-visual-complete");
         continue;
       }
 
-      var timings = getWordTimings(line, wordEls, lineEnd);
+      var timings = getWordTimings(line, wordEls, visualLineEnd);
       var activeInfo = findActiveWordInfo(timings, t);
 
-      if (!activeInfo) {
+      var lastWordDone = !!(activeInfo &&
+        timings.length > 0 &&
+        activeInfo.index === timings.length - 1 &&
+        activeInfo.progress >= 0.99);
+
+      var lineRevealed = forceComplete || lastWordDone;
+
+      if (!activeInfo && !lineRevealed) {
         highlightEl.textContent = "";
+        el.classList.remove("is-visual-complete");
         continue;
       }
 
       var lineRect = el.getBoundingClientRect();
       var rows = groupWordsIntoRows(wordEls, lineRect);
 
-      // Determine which visual row the active word is in
-      var activeWordEl = wordEls[activeInfo.index];
-      var activeWordRect = activeWordEl.getBoundingClientRect();
       var activeRowIdx = -1;
-      for (var ri = 0; ri < rows.length; ri++) {
-        for (var ei = 0; ei < rows[ri].elements.length; ei++) {
-          if (rows[ri].elements[ei] === activeWordEl) {
-            activeRowIdx = ri;
-            break;
+      var activeWordEl = null;
+      var activeWordRect = null;
+      if (activeInfo) {
+        activeWordEl = wordEls[activeInfo.index];
+        activeWordRect = activeWordEl.getBoundingClientRect();
+        for (var ri = 0; ri < rows.length; ri++) {
+          for (var ei = 0; ei < rows[ri].elements.length; ei++) {
+            if (rows[ri].elements[ei] === activeWordEl) {
+              activeRowIdx = ri;
+              break;
+            }
           }
+          if (activeRowIdx >= 0) break;
         }
-        if (activeRowIdx >= 0) break;
       }
 
-      // Build or update highlight rows
       var existingRows = highlightEl.querySelectorAll(".lrcinject-highlight-row");
 
-      // Rebuild if row count changed
       if (existingRows.length !== rows.length) {
         highlightEl.textContent = "";
         for (var rj = 0; rj < rows.length; rj++) {
@@ -935,37 +955,46 @@
         }
         existingRows = highlightEl.querySelectorAll(".lrcinject-highlight-row");
       } else {
-        // Update positions
         for (var rk = 0; rk < rows.length; rk++) {
           existingRows[rk].style.setProperty("--row-left", rows[rk].left.toFixed(1) + "px");
           existingRows[rk].style.setProperty("--row-top", rows[rk].top.toFixed(1) + "px");
         }
       }
 
-      // Set row progress and state classes
-      for (var rp = 0; rp < rows.length; rp++) {
-        var rowEl = existingRows[rp];
-        var rowProgress;
-        if (rp < activeRowIdx) {
-          rowProgress = 100;
-        } else if (rp === activeRowIdx) {
-          var wordStartX = activeWordRect.left - lineRect.left - rows[rp].left;
-          var wordWidth = activeWordRect.width;
-          var sweepX = wordStartX + wordWidth * activeInfo.progress;
-          rowProgress = clamp01(sweepX / Math.max(1, rows[rp].width)) * 100;
-        } else {
-          rowProgress = 0;
+      if (lineRevealed) {
+        for (var fc = 0; fc < existingRows.length; fc++) {
+          existingRows[fc].classList.remove("is-row-pending", "is-row-active");
+          existingRows[fc].classList.add("is-row-completed");
+          existingRows[fc].style.setProperty("--row-progress", "100%");
         }
+        el.classList.add("is-visual-complete");
+      } else {
+        el.classList.remove("is-visual-complete");
 
-        var safeProgress = clamp01(rowProgress / 100);
-        var isPending = rp > activeRowIdx || (rp === activeRowIdx && safeProgress <= 0.005);
-        var isRowActive = rp === activeRowIdx && !isPending;
-        var isRowCompleted = rp < activeRowIdx || safeProgress >= 0.995;
+        for (var rp = 0; rp < rows.length; rp++) {
+          var rowEl = existingRows[rp];
+          var rowProgress;
+          if (rp < activeRowIdx) {
+            rowProgress = 100;
+          } else if (rp === activeRowIdx && activeWordRect) {
+            var wordStartX = activeWordRect.left - lineRect.left - rows[rp].left;
+            var wordWidth = activeWordRect.width;
+            var sweepX = wordStartX + wordWidth * activeInfo.progress;
+            rowProgress = clamp01(sweepX / Math.max(1, rows[rp].width)) * 100;
+          } else {
+            rowProgress = 0;
+          }
 
-        rowEl.classList.toggle("is-row-pending", isPending);
-        rowEl.classList.toggle("is-row-active", isRowActive);
-        rowEl.classList.toggle("is-row-completed", isRowCompleted);
-        rowEl.style.setProperty("--row-progress", (safeProgress * 100).toFixed(2) + "%");
+          var safeProgress = clamp01(rowProgress / 100);
+          var isPending = rp > activeRowIdx || (rp === activeRowIdx && safeProgress <= 0.005);
+          var isRowActive = rp === activeRowIdx && !isPending;
+          var isRowCompleted = rp < activeRowIdx || safeProgress >= 0.995;
+
+          rowEl.classList.toggle("is-row-pending", isPending);
+          rowEl.classList.toggle("is-row-active", isRowActive);
+          rowEl.classList.toggle("is-row-completed", isRowCompleted);
+          rowEl.style.setProperty("--row-progress", (safeProgress * 100).toFixed(2) + "%");
+        }
       }
     }
   }
