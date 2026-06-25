@@ -198,19 +198,24 @@ html.lrcinject-layout-active [data-lrcinject-player-root="true"] [data-lrcinject
 }
 
 /* ── Visual-complete: active line fully revealed before next lyric ── */
-#lrcinject-overlay .lrcinject-line.is-active.is-visual-complete .lrcinject-line-base,
-#lrcinject-overlay .lrcinject-line.is-active.is-visual-complete .lrcinject-word {
+/* Keep highlight overlay as the visual layer — do NOT switch to base text */
+#lrcinject-overlay .lrcinject-line.is-active.is-visual-complete .lrcinject-line-base {
+  color: rgba(255, 255, 255, 0.36);
   opacity: 1;
-  color: rgba(255, 255, 255, 0.96);
   filter: none;
   transform: none;
-  text-shadow:
-    0 0 1px rgba(255, 255, 255, 0.35),
-    0 0 8px rgba(255, 255, 255, 0.06);
 }
 
 #lrcinject-overlay .lrcinject-line.is-active.is-visual-complete .lrcinject-line-highlight {
-  display: none;
+  display: block;
+  opacity: 1;
+}
+
+#lrcinject-overlay .lrcinject-line.is-active.is-visual-complete .lrcinject-highlight-row {
+  opacity: 1;
+  visibility: visible;
+  -webkit-mask-image: none;
+  mask-image: none;
 }
 
 /* ── Near-upcoming ── */
