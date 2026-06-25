@@ -32,6 +32,12 @@
     return Math.max(0, Math.min(1, n));
   }
 
+  var ENHANCED_LRC_TAG_RE = /<\d{1,2}:[0-5]\d(?:[.:]\d{1,3})?>/g;
+
+  function stripEnhancedLrcTags(text) {
+    return String(text == null ? "" : text).replace(ENHANCED_LRC_TAG_RE, "");
+  }
+
   var _playerRoot = null;
   var _lastTimelineState = null;
 
@@ -39,7 +45,8 @@
     visible: false,
     binding: null,
     renderedTrackKey: null,
-    activeIndex: -1,
+    activeRenderIndex: -1,
+    renderItems: null,
     raf: null,
   };
 
@@ -407,12 +414,12 @@
 
     audio.currentTime = Math.max(0, start);
 
-    var index = Number(target.getAttribute("data-index"));
-    if (Number.isFinite(index)) {
-      overlayState.activeIndex = index;
+    var renderIdx = Number(target.getAttribute("data-render-index"));
+    if (Number.isFinite(renderIdx)) {
+      overlayState.activeRenderIndex = renderIdx;
       var offset = overlayState.binding ? (overlayState.binding.userOffset || 0) : 0;
-      updateActiveClasses(index, audio.currentTime, offset);
-      scrollToActiveLine(index);
+      updateActiveClasses(renderIdx, audio.currentTime, offset);
+      scrollToActiveRenderItem(renderIdx);
     }
   }
 
@@ -540,31 +547,57 @@
       return;
     }
 
-    debug("rendering", lines.length, "lyric lines into DOM");
+    var renderItems = buildRenderItems(lines);
+    overlayState.renderItems = renderItems;
+    overlayState.activeRenderIndex = -1;
+
+    debug("rendering", lines.length, "lyric lines,", renderItems.length, "render items into DOM");
 
     container.textContent = "";
 
-    for (var i = 0; i < lines.length; i++) {
+    var padTop = document.createElement("div");
+    padTop.className = "lrcinject-spacer";
+    container.appendChild(padTop);
+
+    for (var i = 0; i < renderItems.length; i++) {
+      var item = renderItems[i];
+
+      if (item.type === "gap-indicator") {
+        var gapLine = document.createElement("div");
+        gapLine.className = "lrcinject-gap-line";
+        gapLine.setAttribute("data-render-index", String(i));
+        gapLine.setAttribute("data-gap-after-line-index", String(item.afterLineIndex));
+        var gapLineInner = document.createElement("div");
+        gapLineInner.className = "lrcinject-gap-line-inner";
+        var gapInner = createGapIndicatorEl();
+        gapLineInner.appendChild(gapInner);
+        gapLine.appendChild(gapLineInner);
+        container.appendChild(gapLine);
+        continue;
+      }
+
+      var line = item.line;
+      var lineIdx = item.lineIndex;
       var el = document.createElement("div");
       el.className = "lrcinject-line";
-      el.setAttribute("data-index", String(i));
-      el.setAttribute("data-start", String(lines[i].start));
+      el.setAttribute("data-index", String(lineIdx));
+      el.setAttribute("data-render-index", String(i));
+      el.setAttribute("data-start", String(line.start));
       el.setAttribute("tabindex", "0");
       el.setAttribute("role", "button");
 
-      // Base layer: always visible
       var base = document.createElement("span");
       base.className = "lrcinject-line-base";
 
-      var lineText = lines[i].text || "\u266a";
-      var words = lines[i].words;
+      var lineText = stripEnhancedLrcTags(line.text || "\u266a");
+      var words = line.words;
 
       if (words && words.length > 0) {
         el.classList.add("lrcinject-line--worded");
         for (var w = 0; w < words.length; w++) {
           var word = document.createElement("span");
           word.className = "lrcinject-word";
-          word.textContent = words[w].text;
+          word.textContent = stripEnhancedLrcTags(words[w].text);
           word.setAttribute("data-word-index", String(w));
           base.appendChild(word);
           if (w < words.length - 1) {
@@ -572,7 +605,6 @@
           }
         }
       } else {
-        // Tokenize into word spans for sweep support
         var tokens = lineText.split(/(\s+)/);
         var wordIdx = 0;
         for (var ti = 0; ti < tokens.length; ti++) {
@@ -591,7 +623,6 @@
 
       el.appendChild(base);
 
-      // Highlight layer: bright overlay, populated dynamically per-frame
       var highlight = document.createElement("span");
       highlight.className = "lrcinject-line-highlight";
       highlight.setAttribute("aria-hidden", "true");
@@ -600,8 +631,13 @@
       container.appendChild(el);
     }
 
-    var rendered = container.querySelectorAll(".lrcinject-line").length;
-    debug("DOM render complete,", rendered, "line elements created");
+    var padBot = document.createElement("div");
+    padBot.className = "lrcinject-spacer";
+    container.appendChild(padBot);
+
+    var renderedLyrics = container.querySelectorAll(".lrcinject-line").length;
+    var renderedGaps = container.querySelectorAll(".lrcinject-gap-indicator").length;
+    debug("DOM render complete,", renderedLyrics, "lyric lines,", renderedGaps, "gap indicators");
   }
 
   function getActiveLineIndex(lines, currentTime, offset) {
@@ -625,65 +661,86 @@
     return lines.length - 1;
   }
 
-  function scrollToActiveLine(activeIndex) {
+  function scrollToActiveRenderItem(activeRenderIdx) {
+    if (activeRenderIdx < 0) return;
+
     var panel = document.querySelector("#lrcinject-overlay .lrcinject-lyrics-panel");
     var linesContainer = document.getElementById("lrcinject-lines");
-    var activeLine = document.querySelector(
-      '#lrcinject-overlay .lrcinject-line[data-index="' + activeIndex + '"]'
+    if (!panel || !linesContainer) return;
+
+    var activeEl = linesContainer.querySelector(
+      '[data-render-index="' + activeRenderIdx + '"]'
     );
 
-    if (!panel || !linesContainer || !activeLine) return;
+    if (!activeEl || activeEl.offsetHeight === 0) return;
 
     var panelH = panel.clientHeight;
     var panelTarget = panelH * 0.40;
-    var lineTop = activeLine.offsetTop;
-    var translateY = Math.round(panelTarget - lineTop);
+    var elTop = activeEl.offsetTop;
+    var translateY = Math.round(panelTarget - elTop);
 
-    var allLines = linesContainer.querySelectorAll(".lrcinject-line");
-    var totalLines = allLines.length;
-    if (totalLines > 0) {
-      var lastLineEl = allLines[totalLines - 1];
-      var containerH = linesContainer.scrollHeight;
-      var minTranslate = Math.round(panelH - containerH + panelH * 0.12);
-      var maxTranslate = Math.round(panelH * 0.88);
-      translateY = Math.max(minTranslate, Math.min(maxTranslate, translateY));
-    }
+    var containerH = linesContainer.scrollHeight;
+    var minTranslate = Math.round(panelH - containerH + panelH * 0.12);
+    var maxTranslate = Math.round(panelH * 0.88);
+    translateY = Math.max(minTranslate, Math.min(maxTranslate, translateY));
 
     linesContainer.style.transform = "translate3d(0, " + translateY + "px, 0)";
   }
 
-  function updateActiveClasses(activeIndex, currentTime, offset) {
-    var lineEls = document.querySelectorAll("#lrcinject-overlay .lrcinject-line");
+  function updateActiveClasses(activeRenderIdx, currentTime, offset) {
+    var renderItems = overlayState.renderItems || [];
+    var activeItem = renderItems[activeRenderIdx];
     var binding = overlayState.binding;
     var parsedLines = binding ? (binding.parsedLines || binding.lines || []) : [];
     var t = (currentTime || 0) + (offset || 0);
 
+    var activeLineIdx = (activeItem && activeItem.type === "lyric") ? activeItem.lineIndex : -1;
+    var gapActive = !!(activeItem && activeItem.type === "gap-indicator");
+    var gapAfterIdx = gapActive ? activeItem.afterLineIndex : -1;
+
+    var lineEls = document.querySelectorAll("#lrcinject-overlay .lrcinject-line");
     for (var i = 0; i < lineEls.length; i++) {
       var el = lineEls[i];
       var idx = Number(el.getAttribute("data-index"));
+      var renderIdx = Number(el.getAttribute("data-render-index"));
       var lineData = parsedLines[idx];
       var nextLine = parsedLines[idx + 1];
       var nextStart = nextLine
         ? nextLine.start
         : (lineData && Number.isFinite(lineData.end) ? lineData.end : Infinity);
 
-      var isActive = idx === activeIndex;
-      var isCompleted = !isActive && t >= nextStart;
-      var isUpcoming = !isActive && !isCompleted;
+      var isActive, isCompleted, isUpcoming;
+
+      if (gapActive) {
+        isActive = false;
+        isCompleted = idx <= gapAfterIdx;
+        isUpcoming = idx > gapAfterIdx;
+      } else {
+        isActive = idx === activeLineIdx;
+        isCompleted = !isActive && t >= nextStart;
+        isUpcoming = !isActive && !isCompleted;
+      }
 
       el.classList.toggle("is-active", isActive);
       el.classList.toggle("is-completed", isCompleted);
       el.classList.toggle("is-upcoming", isUpcoming);
       el.classList.remove("is-near", "is-far");
 
-      if ((isUpcoming || isCompleted) && activeIndex >= 0) {
-        var distance = Math.abs(idx - activeIndex);
+      if (activeRenderIdx >= 0 && Number.isFinite(renderIdx)) {
+        var distance = Math.abs(renderIdx - activeRenderIdx);
         if (distance === 1) {
           el.classList.add("is-near");
         } else if (distance >= 2) {
           el.classList.add("is-far");
         }
       }
+    }
+
+    var gapLineEls = document.querySelectorAll("#lrcinject-overlay .lrcinject-gap-line");
+    for (var j = 0; j < gapLineEls.length; j++) {
+      var gapLineEl = gapLineEls[j];
+      var gRenderIdx = Number(gapLineEl.getAttribute("data-render-index"));
+      gapLineEl.classList.toggle("is-active", gRenderIdx === activeRenderIdx);
     }
   }
 
@@ -790,7 +847,7 @@
   function buildHighlightRowHTML(row) {
     var parts = [];
     for (var i = 0; i < row.elements.length; i++) {
-      parts.push(row.elements[i].textContent);
+      parts.push(stripEnhancedLrcTags(row.elements[i].textContent));
       if (i < row.elements.length - 1) {
         // Preserve whitespace between words
         var next = row.elements[i + 1];
@@ -804,7 +861,11 @@
     return parts.join("");
   }
 
-  function updateHighlightSweep(activeIndex, currentTime, offset) {
+  function updateHighlightSweep(activeRenderIdx, currentTime, offset) {
+    var renderItems = overlayState.renderItems || [];
+    var activeItem = renderItems[activeRenderIdx];
+    var activeLineIdx = (activeItem && activeItem.type === "lyric") ? activeItem.lineIndex : -1;
+
     var lineEls = document.querySelectorAll("#lrcinject-overlay .lrcinject-line");
     var binding = overlayState.binding;
     var parsedLines = binding ? (binding.parsedLines || binding.lines || []) : [];
@@ -816,7 +877,7 @@
       var highlightEl = el.querySelector(".lrcinject-line-highlight");
       if (!highlightEl) continue;
 
-      if (idx !== activeIndex || !parsedLines[idx]) {
+      if (idx !== activeLineIdx || !parsedLines[idx]) {
         highlightEl.textContent = "";
         continue;
       }
@@ -909,6 +970,95 @@
     }
   }
 
+  var GAP_DOT_THRESHOLD = 5;
+
+  function getEffectiveLineEnd(line, nextLineStart) {
+    var lineStart = Number(line.start);
+    if (!Number.isFinite(lineStart)) return null;
+
+    var words = Array.isArray(line.words)
+      ? line.words.filter(function (w) { return Number.isFinite(Number(w.start)); })
+      : [];
+
+    var estimatedEnd;
+
+    if (words.length > 0) {
+      var lastWordStart = Number(words[words.length - 1].start);
+      estimatedEnd = lastWordStart + 0.75;
+    } else {
+      var textLength = String(line.text || "").trim().length;
+      var estimatedDuration = Math.min(3.0, Math.max(1.2, textLength * 0.045));
+      estimatedEnd = lineStart + estimatedDuration;
+    }
+
+    if (Number.isFinite(nextLineStart)) {
+      return Math.min(estimatedEnd, nextLineStart - 0.1);
+    }
+
+    return estimatedEnd;
+  }
+
+  function buildRenderItems(lines) {
+    var items = [];
+
+    for (var i = 0; i < lines.length; i++) {
+      items.push({ type: "lyric", lineIndex: i, line: lines[i] });
+
+      if (i < lines.length - 1) {
+        var currentLineEnd = getEffectiveLineEnd(lines[i], lines[i + 1].start);
+        var nextLineStart = lines[i + 1].start;
+
+        if (Number.isFinite(currentLineEnd) && Number.isFinite(nextLineStart)) {
+          var gapDuration = nextLineStart - currentLineEnd;
+          if (gapDuration > GAP_DOT_THRESHOLD) {
+            var dotStart = currentLineEnd + GAP_DOT_THRESHOLD;
+            var dotEnd = nextLineStart;
+            items.push({ type: "gap-indicator", start: dotStart, end: dotEnd, afterLineIndex: i });
+          }
+        }
+      }
+    }
+
+    return items;
+  }
+
+  function getRenderItemStart(item) {
+    if (item.type === "lyric") return Number(item.line.start);
+    if (item.type === "gap-indicator") return Number(item.start);
+    return NaN;
+  }
+
+  function getRenderItemEnd(renderItems, index) {
+    var item = renderItems[index];
+    if (item.type === "gap-indicator") return Number(item.end);
+    var next = renderItems[index + 1];
+    if (!next) return Infinity;
+    return getRenderItemStart(next);
+  }
+
+  function getActiveRenderIndex(renderItems, currentTime, offset) {
+    if (!renderItems || renderItems.length === 0) return -1;
+    var t = currentTime + (offset || 0);
+
+    for (var i = 0; i < renderItems.length; i++) {
+      var start = getRenderItemStart(renderItems[i]);
+      var end = getRenderItemEnd(renderItems, i);
+      if (Number.isFinite(start) && t >= start && t < end) {
+        return i;
+      }
+    }
+
+    return -1;
+  }
+
+  function createGapIndicatorEl() {
+    var el = document.createElement("div");
+    el.className = "lrcinject-gap-indicator";
+    el.setAttribute("aria-hidden", "true");
+    el.innerHTML = "<span></span><span></span><span></span>";
+    return el;
+  }
+
   function startSyncLoop() {
     stopSyncLoop();
 
@@ -930,8 +1080,8 @@
 
       if (playbackState === "before-start") {
         showPrerollIndicator();
-        if (overlayState.activeIndex !== -1) {
-          overlayState.activeIndex = -1;
+        if (overlayState.activeRenderIndex !== -1) {
+          overlayState.activeRenderIndex = -1;
           scrollToWaitingStart();
         }
         updateActiveClasses(-1, currentAudio.currentTime, offset);
@@ -940,8 +1090,8 @@
       } else if (playbackState === "after-end") {
         hidePrerollIndicator();
         setPrerollClasses(false);
-        if (overlayState.activeIndex !== -2) {
-          overlayState.activeIndex = -2;
+        if (overlayState.activeRenderIndex !== -2) {
+          overlayState.activeRenderIndex = -2;
           updateActiveClasses(-1, currentAudio.currentTime, offset);
           updateHighlightSweep(-1, currentAudio.currentTime, offset);
           scrollToWaitingEnd();
@@ -949,15 +1099,20 @@
       } else {
         hidePrerollIndicator();
         setPrerollClasses(false);
-        var index = getActiveLineIndex(lines, currentAudio.currentTime, offset);
+        var renderItems = overlayState.renderItems || [];
+        var renderIdx = getActiveRenderIndex(renderItems, currentAudio.currentTime, offset);
 
-      if (index !== overlayState.activeIndex) {
-        overlayState.activeIndex = index;
-        scrollToActiveLine(index);
-      }
+        var renderChanged = renderIdx !== overlayState.activeRenderIndex;
+        if (renderChanged) {
+          overlayState.activeRenderIndex = renderIdx;
+        }
 
-      updateActiveClasses(index, currentAudio.currentTime, offset);
-      updateHighlightSweep(index, currentAudio.currentTime, offset);
+        updateActiveClasses(renderIdx, currentAudio.currentTime, offset);
+        updateHighlightSweep(renderIdx, currentAudio.currentTime, offset);
+
+        if (renderChanged) {
+          scrollToActiveRenderItem(renderIdx);
+        }
       }
 
       overlayState.raf = requestAnimationFrame(tick);
@@ -1040,20 +1195,20 @@
       renderLyricsLines(parsedLines);
       overlayState.renderedTrackKey = trackKey;
       overlayState.binding = binding;
-      overlayState.activeIndex = -1;
+      overlayState.activeRenderIndex = -1;
 
       var playbackState = getLyricsPlaybackState(parsedLines, playerState.currentTime, binding.userOffset || 0, playerState.duration);
       setTimelineStateDebug(playbackState, playerState.currentTime);
 
       if (playbackState === "before-start") {
-        overlayState.activeIndex = -1;
+        overlayState.activeRenderIndex = -1;
         updateActiveClasses(-1, playerState.currentTime, binding.userOffset || 0);
         updateHighlightSweep(-1, playerState.currentTime, binding.userOffset || 0);
         showPrerollIndicator();
         setPrerollClasses(true);
         scrollToWaitingStart();
       } else if (playbackState === "after-end") {
-        overlayState.activeIndex = -2;
+        overlayState.activeRenderIndex = -2;
         updateActiveClasses(-1, playerState.currentTime, binding.userOffset || 0);
         updateHighlightSweep(-1, playerState.currentTime, binding.userOffset || 0);
         hidePrerollIndicator();
@@ -1062,11 +1217,14 @@
       } else {
         hidePrerollIndicator();
         setPrerollClasses(false);
-        var initialIndex = getActiveLineIndex(parsedLines, playerState.currentTime, binding.userOffset || 0);
-        overlayState.activeIndex = initialIndex;
-        updateActiveClasses(initialIndex, playerState.currentTime, binding.userOffset || 0);
-        updateHighlightSweep(initialIndex, playerState.currentTime, binding.userOffset || 0);
-        scrollToActiveLine(initialIndex);
+        var renderItems = overlayState.renderItems || [];
+        var initialRenderIdx = getActiveRenderIndex(renderItems, playerState.currentTime, binding.userOffset || 0);
+        overlayState.activeRenderIndex = initialRenderIdx;
+        updateActiveClasses(initialRenderIdx, playerState.currentTime, binding.userOffset || 0);
+        updateHighlightSweep(initialRenderIdx, playerState.currentTime, binding.userOffset || 0);
+        if (initialRenderIdx >= 0) {
+          scrollToActiveRenderItem(initialRenderIdx);
+        }
       }
     } else {
       debug("toggle: same track, skipping re-render");
@@ -1246,7 +1404,8 @@
           _currentBinding = null;
           overlayState.binding = null;
           overlayState.renderedTrackKey = null;
-          overlayState.activeIndex = -1;
+          overlayState.activeRenderIndex = -1;
+          overlayState.renderItems = null;
           setOverlayVisible(false);
           var overlay = document.getElementById("lrcinject-overlay");
           if (overlay) overlay.remove();
@@ -1297,7 +1456,8 @@
 
     overlayState.binding = null;
     overlayState.renderedTrackKey = null;
-    overlayState.activeIndex = -1;
+    overlayState.activeRenderIndex = -1;
+    overlayState.renderItems = null;
 
     AMX.Storage.getBinding(track.key)
       .then(function (binding) {
@@ -1366,7 +1526,8 @@
         setOverlayVisible(false);
         overlayState.binding = null;
         overlayState.renderedTrackKey = null;
-        overlayState.activeIndex = -1;
+        overlayState.activeRenderIndex = -1;
+        overlayState.renderItems = null;
         _currentTrackKey = null;
         _currentBinding = null;
         _playerRoot = null;

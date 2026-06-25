@@ -78,15 +78,15 @@ html.lrcinject-layout-active [data-lrcinject-player-root="true"] [data-lrcinject
   mask-image: linear-gradient(
     to bottom,
     transparent 0%,
-    black 16%,
-    black 84%,
+    black 2%,
+    black 98%,
     transparent 100%
   );
   -webkit-mask-image: linear-gradient(
     to bottom,
     transparent 0%,
-    black 16%,
-    black 84%,
+    black 2%,
+    black 98%,
     transparent 100%
   );
 }
@@ -366,6 +366,79 @@ html.lrcinject-layout-active [data-lrcinject-player-root="true"] [data-lrcinject
   opacity: 1;
   transform: none;
   animation: none;
+}
+
+/* ── Long-gap dot row wrapper ── */
+#lrcinject-overlay .lrcinject-gap-line {
+  display: none;
+  position: relative;
+  font-family: var(--lrcinject-font-family, inherit);
+  font-size: clamp(26px, 2.9vw, 50px);
+  line-height: 1.16;
+  font-weight: 700;
+  letter-spacing: var(--lrcinject-letter-spacing, -0.02em);
+  margin: 0 0 0.55em;
+  max-width: 16ch;
+  pointer-events: none;
+  overflow: visible;
+}
+
+#lrcinject-overlay .lrcinject-gap-line.is-active {
+  display: block;
+}
+
+/* ── Long-gap dot inner wrapper (matches lyric base layer position) ── */
+#lrcinject-overlay .lrcinject-gap-line .lrcinject-gap-line-inner {
+  display: flex;
+  align-items: center;
+  min-height: 1.16em;
+  color: rgba(255, 255, 255, 0.34);
+  opacity: 1;
+  filter: blur(0);
+  transform: scale(1);
+  transform-origin: left center;
+}
+
+/* ── Long-gap dot indicator ── */
+#lrcinject-overlay .lrcinject-gap-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#lrcinject-overlay .lrcinject-gap-indicator span {
+  display: block;
+  width: clamp(7px, 0.5vw, 10px);
+  height: clamp(7px, 0.5vw, 10px);
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.95;
+}
+
+@keyframes lrcGapDotOne {
+  0%, 100% { opacity: 0.95; }
+}
+
+@keyframes lrcGapDotTwo {
+  0%, 32% { opacity: 0.28; }
+  33%, 100% { opacity: 0.95; }
+}
+
+@keyframes lrcGapDotThree {
+  0%, 65% { opacity: 0.28; }
+  66%, 100% { opacity: 0.95; }
+}
+
+#lrcinject-overlay .lrcinject-gap-line.is-active .lrcinject-gap-indicator span:nth-child(1) {
+  animation: lrcGapDotOne 1.4s steps(1, end) infinite;
+}
+
+#lrcinject-overlay .lrcinject-gap-line.is-active .lrcinject-gap-indicator span:nth-child(2) {
+  animation: lrcGapDotTwo 1.4s steps(1, end) infinite;
+}
+
+#lrcinject-overlay .lrcinject-gap-line.is-active .lrcinject-gap-indicator span:nth-child(3) {
+  animation: lrcGapDotThree 1.4s steps(1, end) infinite;
 }
 
 /* ── Toggle button ── */
