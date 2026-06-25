@@ -87,16 +87,26 @@ The extension injects a content script into Apple Music Web that:
 
 ## Create Word-by-Word Lyrics with SyncSong
 
-You can create Enhanced LRC files with per-word timestamps using [SyncSong](https://syncsong.net/):
+You can create Enhanced LRC files with per-word timestamps using [SyncSong (forked by Astear17)](https://github.com/Astear17/SyncSong):
 
-1. Open [SyncSong](https://syncsong.net/).
-2. Import or paste your lyrics.
-3. Sync line timestamps first (press Enter or click Mark for each line).
-4. Enable **Word mode** toggle in the sync view.
-5. Mark each word: play the audio, press `Tab` when you hear each word, and it auto-advances.
-6. Alternatively, click **Auto All** to generate rough word timings, then refine manually.
-7. Export as **Enhanced LRC** (select the Enhanced LRC radio button in the export view).
-8. Import the exported `.lrc` file into LRCInject.
+1. Run the below code in CMD/PowerShell to clone and run the site locally
+> [!NOTE]
+> Make sure you have Node.js installed.
+```bash
+git clone https://github.com/Astear17/SyncSong
+cd SyncSong
+npm install
+npm run dev
+```
+2. Enter the localhost domain it gives you (in the terminal window
+3. Import audio file by dragging or click to choose
+4. Import or paste your lyrics.
+5. Sync line timestamps first (press Enter or click Mark for each line).
+6. Enable **Word mode** toggle in the sync view.
+7. Mark each word: play the audio, press `Tab` when you hear each word, and it auto-advances.
+8. Alternatively, click **Auto All** to generate rough word timings, then refine manually.
+9. Export as **Enhanced LRC** (select the Enhanced LRC radio button in the export view).
+10. Import the exported `.lrc` file into LRCInject.
 
 ### Minimal Example
 
